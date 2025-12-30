@@ -43,7 +43,7 @@ BEncodedValuePtr BEncodingImpl::DecodeNextObject(ByteIterator &iterator) {
 
   if (current == NumberStart)
     return DecodeNumber(iterator);
-
+  
   return DecodeByteArray(iterator);
 }
 

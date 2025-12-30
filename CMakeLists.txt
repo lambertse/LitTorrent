@@ -21,7 +21,10 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
 
 # Include all header files in the include directory
 file(GLOB LITTORRENT_HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/LitTorrent/*.h")
-file(GLOB LITTORRENT_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/LitTorrent/*.cpp")
+file(GLOB LITTORRENT_SOURCE_FILES 
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/LitTorrent/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/LitTorrent/BEncoding/*.cpp"
+)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 

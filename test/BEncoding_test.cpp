@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "LitTorrent/BEncoding.h"
 
+#include <fstream>
+
 using namespace LitTorrent;
 
 class BEncodingDecodeTest : public ::testing::Test {
@@ -321,6 +323,308 @@ TEST_F(BEncodingDecodeTest, DecodeEmptyDataThrowsError) {
     EXPECT_THROW({
         BEncoding::Decode(data);
     }, std::runtime_error);
+}
+using namespace LitTorrent;
+
+class BEncodingDecodeFileTest : public ::testing::Test {
+protected:
+    std::string testDir;
+    
+    void SetUp() override {
+        testDir = "/tmp/bencoding_test/";
+        // Create test directory
+        system(("mkdir -p " + testDir).c_str());
+    }
+
+    void TearDown() override {
+        // Clean up test files
+        system(("rm -rf " + testDir).c_str());
+    }
+    
+    // Helper to create a test file with binary data
+    void CreateTestFile(const std::string& filename, const ByteArray& data) {
+        std::string filepath = testDir + filename;
+        std::ofstream file(filepath, std::ios::binary);
+        if (!file) {
+            throw std::runtime_error("Unable to create test file: " + filepath);
+        }
+        file.write(reinterpret_cast<const char*>(data.data()), data.size());
+        file.close();
+    }
+    
+    // Helper to convert string to ByteArray
+    ByteArray StringToByteArray(const std::string& str) {
+        return ByteArray(str.begin(), str.end());
+    }
+};
+
+// Basic File Decoding Tests
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithNumber) {
+    // Create file with "i42e"
+    ByteArray data = {'i', '4', '2', 'e'};
+    CreateTestFile("number.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "number.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::Number);
+    EXPECT_EQ(result->GetNumber(), 42);
+}
+
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithString) {
+    // Create file with "5:hello"
+    std::string str = "5:hello";
+    ByteArray data = StringToByteArray(str);
+    CreateTestFile("string.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "string.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::ByteArray);
+    ByteArray expected = {'h', 'e', 'l', 'l', 'o'};
+    EXPECT_EQ(result->GetByteArray(), expected);
+}
+
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithList) {
+    // Create file with "li1ei2ei3ee"
+    ByteArray data = {'l', 'i', '1', 'e', 'i', '2', 'e', 'i', '3', 'e', 'e'};
+    CreateTestFile("list.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "list.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::List);
+    auto list = result->GetList();
+    EXPECT_EQ(list.size(), 3);
+    EXPECT_EQ(list[0]->GetNumber(), 1);
+    EXPECT_EQ(list[1]->GetNumber(), 2);
+    EXPECT_EQ(list[2]->GetNumber(), 3);
+}
+
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithDictionary) {
+    // Create file with "d3:agei25e4:name4:Johne"
+    std::string str = "d3:agei25e4:name4:Johne";
+    ByteArray data = StringToByteArray(str);
+    CreateTestFile("dict.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "dict.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::Dictionary);
+    auto dict = result->GetDictionary();
+    
+    EXPECT_EQ(dict.size(), 2);
+    EXPECT_EQ(dict["age"]->GetNumber(), 25);
+    
+    ByteArray expectedName = {'J', 'o', 'h', 'n'};
+    EXPECT_EQ(dict["name"]->GetByteArray(), expectedName);
+}
+
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithBinaryData) {
+    // Create file with binary data: "3:" followed by 3 bytes including null
+    ByteArray data = {'3', ':', 0xFF, 0x00, 0xAB};
+    CreateTestFile("binary.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "binary.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::ByteArray);
+    ByteArray expected = {0xFF, 0x00, 0xAB};
+    EXPECT_EQ(result->GetByteArray(), expected);
+}
+
+// Complex Structure File Tests
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithComplexStructure) {
+    // Complex nested structure
+    std::string str = "d4:listl3:one3:twoe6:nestedd3:keyi1ee6:numberi42ee";
+    ByteArray data = StringToByteArray(str);
+    CreateTestFile("complex.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "complex.bencode");
+    
+    auto dict = result->GetDictionary();
+    EXPECT_EQ(dict.size(), 3);
+    
+    // Check list
+    auto list = dict["list"]->GetList();
+    EXPECT_EQ(list.size(), 2);
+    ByteArray expected1 = {'o', 'n', 'e'};
+    EXPECT_EQ(list[0]->GetByteArray(), expected1);
+    
+    // Check number
+    EXPECT_EQ(dict["number"]->GetNumber(), 42);
+    
+    // Check nested dict
+    auto nested = dict["nested"]->GetDictionary();
+    EXPECT_EQ(nested["key"]->GetNumber(), 1);
+}
+
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithLargeData) {
+    // Create a large byte array
+    std::string largeString(1000, 'A');
+    std::string encoded = "1000:" + largeString;
+    ByteArray data = StringToByteArray(encoded);
+    CreateTestFile("large.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "large.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::ByteArray);
+    EXPECT_EQ(result->GetByteArray().size(), 1000);
+    
+    // Verify all bytes are 'A'
+    for (auto byte : result->GetByteArray()) {
+        EXPECT_EQ(byte, 'A');
+    }
+}
+
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithEmptyList) {
+    // "le"
+    ByteArray data = {'l', 'e'};
+    CreateTestFile("empty_list.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "empty_list.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::List);
+    EXPECT_TRUE(result->GetList().empty());
+}
+
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithEmptyDictionary) {
+    // "de"
+    ByteArray data = {'d', 'e'};
+    CreateTestFile("empty_dict.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "empty_dict.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::Dictionary);
+    EXPECT_TRUE(result->GetDictionary().empty());
+}
+
+// Realistic Torrent-like Structure
+TEST_F(BEncodingDecodeFileTest, DecodeFileTorrentLikeStructure) {
+    // Simplified torrent file structure
+    // d8:announce19:http://tracker.com4:infod4:name4:test6:lengthi1000eee
+    std::string str = "d8:announce18:http://tracker.com4:infod6:lengthi1000e4:name4:testee";
+    ByteArray data = StringToByteArray(str);
+    CreateTestFile("torrent.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "torrent.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::Dictionary);
+    auto dict = result->GetDictionary();
+    
+    // Check announce URL
+    ByteArray expectedUrl = StringToByteArray("http://tracker.com");
+    EXPECT_EQ(dict["announce"]->GetByteArray(), expectedUrl);
+    
+    // Check info dict
+    EXPECT_EQ(dict["info"]->GetType(), BEncodedValue::Type::Dictionary);
+    auto info = dict["info"]->GetDictionary();
+    
+    EXPECT_EQ(info["length"]->GetNumber(), 1000);
+    ByteArray expectedName = {'t', 'e', 's', 't'};
+    EXPECT_EQ(info["name"]->GetByteArray(), expectedName);
+}
+
+// Error Handling Tests
+TEST_F(BEncodingDecodeFileTest, DecodeNonExistentFileThrowsError) {
+    EXPECT_THROW({
+        BEncoding::DecodeFile(testDir + "nonexistent.bencode");
+    }, std::runtime_error);
+}
+
+TEST_F(BEncodingDecodeFileTest, DecodeEmptyFileThrowsError) {
+    // Create empty file
+    ByteArray data;
+    CreateTestFile("empty.bencode", data);
+    
+    EXPECT_THROW({
+        BEncoding::DecodeFile(testDir + "empty.bencode");
+    }, std::runtime_error);
+}
+
+TEST_F(BEncodingDecodeFileTest, DecodeInvalidFileThrowsError) {
+    // Create file with invalid bencoded data
+    std::string str = "invalid bencoded data";
+    ByteArray data = StringToByteArray(str);
+    CreateTestFile("invalid.bencode", data);
+    
+    EXPECT_THROW({
+        BEncoding::DecodeFile(testDir + "invalid.bencode");
+    }, std::exception);
+}
+
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithInvalidPermissions) {
+    // This test might be platform-specific
+    // Create file and remove read permissions
+    ByteArray data = {'i', '1', 'e'};
+    std::string filepath = testDir + "noperm.bencode";
+    CreateTestFile("noperm.bencode", data);
+    
+    // Remove read permissions (Unix-specific)
+    chmod(filepath.c_str(), 0000);
+    
+    EXPECT_THROW({
+        BEncoding::DecodeFile(filepath);
+    }, std::runtime_error);
+    
+    // Restore permissions for cleanup
+    chmod(filepath.c_str(), 0644);
+}
+
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithTrailingData) {
+    // "i42e" followed by extra data
+    ByteArray data = {'i', '4', '2', 'e', 'e', 'x', 't', 'r', 'a'};
+    CreateTestFile("trailing.bencode", data);
+    
+    // Should successfully decode the number and ignore trailing data
+    auto result = BEncoding::DecodeFile(testDir + "trailing.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::Number);
+    EXPECT_EQ(result->GetNumber(), 42);
+}
+
+// Multi-byte Character Tests
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithUTF8Characters) {
+    // "9:hello世界" (UTF-8 encoded Chinese characters)
+    std::string str = "9:hello世界";
+    ByteArray data = StringToByteArray(str);
+    CreateTestFile("utf8.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "utf8.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::ByteArray);
+    // The byte array should contain the UTF-8 encoded bytes
+    EXPECT_EQ(result->GetByteArray().size(), 9);
+}
+
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithNullBytes) {
+    // "5:" followed by 5 bytes including nulls
+    ByteArray data = {'5', ':', 'a', 0x00, 'b', 0x00, 'c'};
+    CreateTestFile("nullbytes.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "nullbytes.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::ByteArray);
+    ByteArray expected = {'a', 0x00, 'b', 0x00, 'c'};
+    EXPECT_EQ(result->GetByteArray(), expected);
+}
+
+// Edge Cases
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithZeroLengthString) {
+    // "0:"
+    ByteArray data = {'0', ':'};
+    CreateTestFile("zero_string.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "zero_string.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::ByteArray);
+    EXPECT_TRUE(result->GetByteArray().empty());
+}
+
+TEST_F(BEncodingDecodeFileTest, DecodeFileWithNegativeZero) {
+    // "i-0e" should be valid according to spec (though unusual)
+    ByteArray data = {'i', '-', '0', 'e'};
+    CreateTestFile("neg_zero.bencode", data);
+    
+    auto result = BEncoding::DecodeFile(testDir + "neg_zero.bencode");
+    
+    EXPECT_EQ(result->GetType(), BEncodedValue::Type::Number);
+    EXPECT_EQ(result->GetNumber(), 0);
 }
 
 int main(int argc, char **argv){
