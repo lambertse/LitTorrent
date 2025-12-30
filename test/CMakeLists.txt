@@ -35,3 +35,7 @@ add_littorrent_test(BEncoding_test
     ${CMAKE_SOURCE_DIR}/src/LitTorrent/BEncoding/BEncoding.cpp
 )
 
+add_littorrent_test(HTTPUtils_test
+    ${CMAKE_SOURCE_DIR}/src/Utils/HTTPUtils.cpp
+)
+

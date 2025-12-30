@@ -24,9 +24,11 @@ file(GLOB LITTORRENT_HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/LitTorren
 file(GLOB LITTORRENT_SOURCE_FILES 
     "${CMAKE_CURRENT_SOURCE_DIR}/src/LitTorrent/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/LitTorrent/BEncoding/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Utils/*.cpp"
 )
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty)
 
 add_executable(LitTorrent ${LITTORRENT_SOURCE_FILES})
 target_include_directories(LitTorrent PRIVATE 
