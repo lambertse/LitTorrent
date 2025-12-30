@@ -25,7 +25,12 @@ macro(add_littorrent_test test_name)
 endmacro()
 
 # Define test cases with their dependencies
-add_littorrent_test( BEncodedValue_test
+add_littorrent_test(BEncodedValue_test
+    ${CMAKE_SOURCE_DIR}/src/LitTorrent/BEncodingImpl.cpp
+    ${CMAKE_SOURCE_DIR}/src/LitTorrent/BEncoding.cpp
+)
+
+add_littorrent_test(BEncoding_test
     ${CMAKE_SOURCE_DIR}/src/LitTorrent/BEncodingImpl.cpp
     ${CMAKE_SOURCE_DIR}/src/LitTorrent/BEncoding.cpp
 )
