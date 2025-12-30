@@ -39,3 +39,5 @@ add_littorrent_test(HTTPUtils_test
     ${CMAKE_SOURCE_DIR}/src/Utils/HTTPUtils.cpp
 )
 
+add_littorrent_test(SHA1_test)
+
