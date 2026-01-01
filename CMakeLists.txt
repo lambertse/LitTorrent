@@ -10,7 +10,7 @@ set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 set(LITTORRENT_ENABLE_TEST ON)
 
 # C++ Standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Define compile flags for Debug and Release modes

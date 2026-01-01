@@ -8,7 +8,7 @@
 
 class SHA1 {
 public:
-  static std::string ComputeHash(const std::string &input) {
+  static std::string computeHash(const std::string &input) {
     // Initialize hash values
     uint32_t h0 = 0x67452301;
     uint32_t h1 = 0xEFCDAB89;
