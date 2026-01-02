@@ -1,80 +1,113 @@
 #pragma once
 
 #include "LitTorrent/BEncoding.h"
+#include "PieceVerifier.h"
+#include "TorrentMetadata.h"
 #include <ctime>
 #include <filesystem>
-#include <functional>
 #include <memory>
-#include <optional>
+#include <mutex>
 #include <string>
 #include <vector>
 
 namespace LitTorrent {
+
 // Forward declarations
 class FileItem;
 class Tracker;
 using TorrentPtr = std::shared_ptr<class Torrent>;
-using PieceVerifiedCallback = std::function<int(int)>;
 
-class Torrent {
+class Torrent : public std::enable_shared_from_this<Torrent> {
 public:
   // Constructor
   Torrent(std::string name, std::string location, std::vector<FileItem> files,
           std::vector<std::string> trackers, int pieceSize,
-          std::vector<std::string> pieceHashes, int blockSize = 16384,
+          std::vector<Hash> pieceHashes, int blockSize = 16384,
           bool isPrivate = false);
 
   // Destructor
   ~Torrent();
 
+  // Disable copy, allow move
+  Torrent(const Torrent &) = delete;
+  Torrent &operator=(const Torrent &) = delete;
+  Torrent(Torrent &&) = default;
+  Torrent &operator=(Torrent &&) = default;
+
+  // Piece operations (throw on error)
+  int getPieceCount() const;
+  int getPieceSize(int pieceIdx) const;
+  bool isPieceVerified(int pieceIdx) const;
+  std::vector<uint8_t> readPiece(int pieceIdx) const;
+  bool writePiece(int pieceIdx, const std::vector<uint8_t>& data);
+
+  // Block operations (throw on error)
+  int getBlockCount(int pieceIdx) const;
+  int getBlockSize(int pieceIdx, int blockIdx) const;
+  std::vector<uint8_t> readBlock(int pieceIdx, int blockIdx) const;
+  bool writeBlock(int pieceIdx, int blockIdx, const std::vector<uint8_t>& data);
+
+  // Hash operations
+  const Hash &getHash(int pieceIdx) const;
+  const Hash &getInfoHash() const;
+
+  // Callback management
+  void setPieceVerifiedCallback(PieceVerifiedCallback callback);
+
+  // File operations (throw on error)
+  void ensureFilesExist();
+  void closeFiles();
+
+  // Metadata access
+  const std::string &getName() const { return metadata_.name; }
+  const std::vector<FileItem> &getFiles() const { return files_; }
+  const std::string &getDownloadDirectory() const { return downloadDirectory_; }
+  const TorrentMetadata &getMetadata() const { return metadata_; }
+  size_t getTotalSize() const { return totalSize_; }
+
+  // Progress tracking
+  double getProgress() const;
+  size_t getDownloadedBytes() const;
+
+  // Static methods for serialization (throw on error)
+  static TorrentPtr loadFromFile(std::filesystem::path filePath,
+                                 std::filesystem::path downloadDir);
+  static void saveToFile(TorrentPtr torrent, std::filesystem::path outputPath);
+
+  static TorrentPtr fromBEncodedObj(BEncodedValuePtr object,
+                                    const std::string &downloadPath);
+  static BEncodedValuePtr toBEncodedObj(TorrentPtr torrent);
+
 private:
-  size_t getTotalSize() const;
-  void verify(int pieceIdx);
+  // Helper methods
+  void validatePieceIndex(int pieceIdx) const;
+  void validateBlockIndex(int pieceIdx, int blockIdx) const;
+  size_t calculateTotalSize() const;
+  int calculateBlockOffset(int pieceIdx, int blockIdx) const;
 
-public:
-    int getPieceCount() const;
-    void setPieceVerifiedCallback(PieceVerifiedCallback callback);
-    int getPieceSize(int pieceIdx) const;
-    int getBlockSize(int pieceIdx, int blockIdx) const;
-    int getBlockCount(int pieceIdx) const;
+  std::vector<uint8_t> read(size_t start, size_t count) const;
+  void write(size_t start, const std::vector<uint8_t>& buffer);
 
-    std::string readPiece(int pieceIdx) const;
-    std::string readBlock(int pieceIdx, int offset, int length);
-    void writeBlock(int pieceIdx, int block, std::string bytes);
+  static BEncodedValuePtr torrentInfoToBEncodedObj(TorrentPtr torrent);
 
-    std::string getHash(int pieceIdx) const;
+  // Member variables
+  TorrentMetadata metadata_;
+  std::vector<FileItem> files_;
+  std::string downloadDirectory_;
+  std::vector<std::unique_ptr<Tracker>> trackers_;
+  size_t totalSize_;
 
-    std::string read(int start, int count) const;
-    void write(int start, const std::string &buffer) const;
+  // Piece and block tracking
+  std::vector<std::vector<bool>> blockAcquired_;
 
-  public:
-    // Static method:
-    static TorrentPtr BEncodedObjToTorrent(BEncodedValuePtr object);
-    static BEncodedValuePtr torrentInfoToBEncodedObj(TorrentPtr torrent);
-    static BEncodedValuePtr TorrentToBEncodedObj(TorrentPtr torrent);
+  // File management
+  std::unique_ptr<class FileManager> fileManager_;
 
-    static TorrentPtr loadFromFile(std::filesystem::path filePath,
-                                   std::filesystem::path downloadDir);
-    static void saveToFile(TorrentPtr torrent);
+  // Piece verification
+  std::unique_ptr<PieceVerifier> verifier_;
 
-  private:
-    std::string name_;
-    std::optional<bool> isPrivate_;
-    std::vector<FileItem> files_;
-    std::string downloadDirectory_;
-    std::vector<std::unique_ptr<Tracker>> trackers_;
-    std::string comment_;
-    std::string createdBy_;
-    std::time_t creationDate_;
-    std::string encoding_;
-    int blockSize_;
-    int pieceSize_;
-    std::vector<std::string> pieceHashes_;
-    std::vector<bool> isPieceVerified_;
-    std::vector<std::vector<bool>> isBlockAcquired_;
-    std::string infoHash_;
-
-    PieceVerifiedCallback pieceVerifiedCb_;
+  // Thread safety
+  mutable std::mutex mutex_;
 };
 
 } // namespace LitTorrent
