@@ -9,6 +9,8 @@ public:
       : offset_(0), path_(path), size_(size) {}
 
     size_t getSize() const;
+    int getOffset() const;
+    std::filesystem::path getFilePath() const;
 private:
   std::filesystem::path path_;
   size_t size_;
