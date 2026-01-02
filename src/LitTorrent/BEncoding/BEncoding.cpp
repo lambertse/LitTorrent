@@ -44,9 +44,9 @@ BEncodedValuePtr BEncoding::DecodeFile(const std::string &path) {
   return BEncodingImpl::DecodeFile(path);
 }
 
-ByteArray Encode(BEncodedValuePtr obj) { return BEncodingImpl::Encode(obj); }
+ByteArray BEncoding::Encode(BEncodedValuePtr obj) { return BEncodingImpl::Encode(obj); }
 
-void EncodeToFile(BEncodedValuePtr obj, const std::string &path) {
+void BEncoding::EncodeToFile(BEncodedValuePtr obj, const std::string &path) {
   return BEncodingImpl::EncodeToFile(obj, path);
 }
 
