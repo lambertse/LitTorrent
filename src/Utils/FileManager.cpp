@@ -10,7 +10,7 @@ FileManager::FileManager(const std::vector<FileItem> &files) : files_(files) {}
 FileManager::~FileManager() { closeAll(); }
 
 FileManager::FileHandle *
-FileManager::getOrOpenFile(const std::filesystem::path &path, size_t size,
+FileManager::getOrOpenFile(const fs::path &path, size_t size,
                            size_t offset, bool write) const {
   std::lock_guard<std::mutex> lock(mutex_);
 
@@ -144,7 +144,7 @@ void FileManager::ensureFilesExist() {
   std::error_code ec;
 
   for (const auto &file : files_) {
-    std::filesystem::path path = file.getFilePath();
+    fs::path path = file.getFilePath();
 
     // Create parent directories
     std::filesystem::create_directories(path.parent_path(), ec);

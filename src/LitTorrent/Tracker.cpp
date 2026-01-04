@@ -1,47 +1,61 @@
 #include "LitTorrent/Tracker.h"
+#include "LitTorrent/Torrent.h"
+#include "Logger.h"
 #include <algorithm>
+#include <sstream>
 
 namespace LitTorrent {
+
+namespace {
+namespace Internal {
+static std::string trackerEventToString(const TrackerEvent &event) {
+  switch (event) {
+  case LitTorrent::TrackerEvent::STARTED:
+    return "started";
+  case LitTorrent::TrackerEvent::PAUSED:
+    return "paused";
+  case LitTorrent::TrackerEvent::STOPPED:
+    return "stopped";
+  default:
+    return "";
+  }
+}
+}
+}
+
 // Constructor
-Tracker::Tracker(const std::string &address) : address(address) {}
+Tracker::Tracker(const std::string &address) : address_(address) {}
 
 // Destructor
 Tracker::~Tracker() {}
 
 // Getter
-std::string Tracker::getAddress() const { return address; }
+std::string Tracker::getAddress() const { return address_; }
 
-// Setter (private)
-void Tracker::setAddress(const std::string &address) {
-  this->address = address;
-}
-
-// Add event handler
-void Tracker::addPeerListUpdatedHandler(const PeerListUpdatedHandler &handler) {
-  peerListUpdatedHandlers.push_back(handler);
-}
-
-// Remove event handler
-void Tracker::removePeerListUpdatedHandler(
-    const PeerListUpdatedHandler &handler) {
-  // Note: This is a simple implementation. For more robust comparison,
-  // you might need to store handlers with identifiers or use a different
-  // approach Since std::function doesn't have a comparison operator, this is a
-  // simplified version In practice, you might want to use a different event
-  // system
-
-  // This is a placeholder - std::function cannot be compared directly
-  // You would need to implement a proper event system with handler IDs
-  // or use a library like Boost.Signals2
-}
-
-// Trigger the event
-void Tracker::onPeerListUpdated(const std::vector<IPEndPoint> &peerList) {
-  for (const auto &handler : peerListUpdatedHandlers) {
-    if (handler) {
-      handler(peerList);
-    }
+void Tracker::update(std::shared_ptr<Torrent> torrent, TrackerEvent event,
+                     std::string peerID, int port) {
+  if (event == TrackerEvent::STARTED &&
+      time(0) < lastPeerRequest_ + peerRequestInterval_) {
+    return;
   }
+
+  auto hash = torrent->getInfoHash();
+  lastPeerRequest_ = time(0);
+  std::ostringstream oss;
+  oss << address_ << "?info_hash=" << std::string(hash.begin(), hash.end())
+      << "&peer_id=" << peerID << "&port=" << port
+      << "&uploaded=" << torrent->getUploaded()
+      << "&downloaded=" << torrent->getDownloaded()
+      << "&left=" << torrent->getLeft()
+      << "&event=" << Internal::trackerEventToString(event) << "&compact=1";
+
+  LOG_INFO("Request to URL: %s", oss.str().c_str());
+  request(oss.str());
 }
 
+void Tracker::resetLastRequest() { lastPeerRequest_ = time(0); }
+
+void Tracker::request(const std::string &url) {
+  // TBD
+}
 } // namespace LitTorrent

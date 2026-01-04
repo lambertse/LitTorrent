@@ -1,6 +1,6 @@
 #pragma once
 
-#include <filesystem>
+#include "Define.h"
 #include <fstream>
 #include <memory>
 #include <mutex>
@@ -23,8 +23,8 @@ public:
   // Disable copy, allow move
   FileManager(const FileManager &) = delete;
   FileManager &operator=(const FileManager &) = delete;
-  FileManager(FileManager &&) = default;
-  FileManager &operator=(FileManager &&) = default;
+  FileManager(FileManager &&) = delete;
+  FileManager &operator=(FileManager &&) = delete;
 
   // Read data from the file set (throws on error)
   std::vector<uint8_t> read(size_t start, size_t count) const;
@@ -41,7 +41,7 @@ public:
 private:
   struct FileHandle {
     std::fstream stream;
-    std::filesystem::path path;
+    fs::path path;
     size_t size;
     size_t offset;
   };
@@ -50,7 +50,7 @@ private:
   mutable std::unordered_map<std::string, std::unique_ptr<FileHandle>> handles_;
   mutable std::mutex mutex_;
 
-  FileHandle *getOrOpenFile(const std::filesystem::path &path,
+  FileHandle *getOrOpenFile(const fs::path &path,
                            size_t size, size_t offset, bool write) const;
 };
 

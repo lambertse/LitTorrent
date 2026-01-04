@@ -1,6 +1,8 @@
 #pragma once
 
+#include <ctime>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -13,34 +15,27 @@ struct IPEndPoint {
   IPEndPoint(const std::string &addr, int p) : address(addr), port(p) {}
 };
 
+using PeerListUpdatedCallback =
+    std::function<void(const std::vector<IPEndPoint> &)>;
+
+enum class TrackerEvent { STARTED, PAUSED, STOPPED };
+class Torrent;
 class Tracker {
-public:
-  // Event handler type for PeerListUpdated event
-  using PeerListUpdatedHandler =
-      std::function<void(const std::vector<IPEndPoint> &)>;
-
-private:
-  std::string address;
-  std::vector<PeerListUpdatedHandler> peerListUpdatedHandlers;
-
 public:
   explicit Tracker(const std::string &address);
   ~Tracker();
 
-  // Getter
   std::string getAddress() const;
-
-  // Event subscription methods
-  void addPeerListUpdatedHandler(const PeerListUpdatedHandler &handler);
-  void removePeerListUpdatedHandler(const PeerListUpdatedHandler &handler);
-
-  // Method to trigger the event
-  void onPeerListUpdated(const std::vector<IPEndPoint> &peerList);
+  void update(std::shared_ptr<Torrent> torrent, TrackerEvent event,
+              std::string peerID, int port);
+  void resetLastRequest();
+private:
+  void request(const std::string &url);
 
 private:
-  // Setter (private to match C# behavior)
-  void setAddress(const std::string &address);
+  std::string address_;
+  time_t lastPeerRequest_;
+  int peerRequestInterval_;
 };
 
 } // namespace LitTorrent
-

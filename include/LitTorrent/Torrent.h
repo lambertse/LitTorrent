@@ -3,6 +3,7 @@
 #include "LitTorrent/BEncoding.h"
 #include "PieceVerifier.h"
 #include "TorrentMetadata.h"
+#include "Define.h"
 #include <ctime>
 #include <filesystem>
 #include <memory>
@@ -31,8 +32,8 @@ public:
   // Disable copy, allow move
   Torrent(const Torrent &) = delete;
   Torrent &operator=(const Torrent &) = delete;
-  Torrent(Torrent &&) = default;
-  Torrent &operator=(Torrent &&) = default;
+  Torrent(Torrent &&) = delete;
+  Torrent &operator=(Torrent &&) = delete;
 
   // Piece operations (throw on error)
   int getPieceCount() const;
@@ -50,6 +51,11 @@ public:
   // Hash operations
   const Hash &getHash(int pieceIdx) const;
   const Hash &getInfoHash() const;
+
+  int getUploaded() const;
+  int getDownloaded() const;
+  int getVerifiedPieceCount() const;
+  int getLeft() const;
 
   // Callback management
   void setPieceVerifiedCallback(PieceVerifiedCallback callback);
@@ -70,13 +76,17 @@ public:
   size_t getDownloadedBytes() const;
 
   // Static methods for serialization (throw on error)
-  static TorrentPtr loadFromFile(std::filesystem::path filePath,
-                                 std::filesystem::path downloadDir);
-  static void saveToFile(TorrentPtr torrent, std::filesystem::path outputPath);
+  static TorrentPtr loadFromFile(fs::path filePath,
+                                 fs::path downloadDir);
+  static void saveToFile(TorrentPtr torrent, fs::path outputPath);
 
   static TorrentPtr fromBEncodedObj(BEncodedValuePtr object,
                                     const std::string &downloadPath);
   static BEncodedValuePtr toBEncodedObj(TorrentPtr torrent);
+
+  static TorrentPtr create(const fs::path &path,
+                           std::vector<std::string> trackers,
+                           int pieceSize = 32768, std::string comment = "");
 
 private:
   // Helper methods
@@ -96,8 +106,7 @@ private:
   std::string downloadDirectory_;
   std::vector<std::unique_ptr<Tracker>> trackers_;
   size_t totalSize_;
-
-  // Piece and block tracking
+  int uploaded_;
   std::vector<std::vector<bool>> blockAcquired_;
 
   // File management

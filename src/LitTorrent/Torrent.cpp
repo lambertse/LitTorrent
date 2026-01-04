@@ -256,6 +256,17 @@ const Hash &Torrent::getHash(int pieceIdx) const {
 
 const Hash &Torrent::getInfoHash() const { return metadata_.infoHash; }
 
+int Torrent::getUploaded() const { return uploaded_; }
+int Torrent::getVerifiedPieceCount() const {
+  const auto &status = verifier_->getVerificationStatus();
+  return std::count(status.begin(), status.end(), true);
+}
+
+int Torrent::getDownloaded() const {
+  return metadata_.pieceSize * getVerifiedPieceCount();
+}
+int Torrent::getLeft() const { return getTotalSize() - getDownloaded(); }
+
 std::vector<uint8_t> Torrent::read(size_t start, size_t count) const {
   if (!fileManager_) {
     throw TorrentException(ErrorCode::FileReadError, "FileManager not initialized");
