@@ -31,6 +31,7 @@ public:
   void resetLastRequest();
 private:
   void request(const std::string &url);
+  bool handleResponse(const struct HTTPResponse& response);
 
 private:
   std::string address_;

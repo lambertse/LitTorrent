@@ -1,7 +1,11 @@
 #include "LitTorrent/Tracker.h"
+#include "LitTorrent/BEncoding.h"
 #include "LitTorrent/Torrent.h"
+#include "LitTorrent/Tracker.h"
+#include "../Utils/HTTPUtils.cpp"
 #include "Logger.h"
 #include <algorithm>
+#include <cstddef>
 #include <sstream>
 
 namespace LitTorrent {
@@ -57,5 +61,20 @@ void Tracker::resetLastRequest() { lastPeerRequest_ = time(0); }
 
 void Tracker::request(const std::string &url) {
   // TBD
+}
+
+bool Tracker::handleResponse(const struct HTTPResponse& response){
+    if(!response.success) {
+        return false;
+    } 
+    
+    BEncodedValuePtr res = BEncoding::Decode(response.body); 
+    if(res == NULL) {return false;}
+    BEncodedDict resDict= res->GetDictionary();
+
+    peerRequestInterval_ = resDict["interval"]->GetNumber();
+    BEncodedList peerList = resDict["peers"]->GetList();
+
+    return true;
 }
 } // namespace LitTorrent
