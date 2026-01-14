@@ -1,6 +1,7 @@
 #pragma once
 
 #include "LitTorrent/BEncoding.h"
+#include "LitTorrent/Tracker.h"
 #include "PieceVerifier.h"
 #include "TorrentMetadata.h"
 #include "Define.h"
@@ -63,6 +64,9 @@ public:
   // File operations (throw on error)
   void ensureFilesExist();
   void closeFiles();
+  
+  // Tracker utilities
+  void updateTracker(TrackerEvent ev, const std::string &id, const int &port);
 
   // Metadata access
   const std::string &getName() const { return metadata_.name; }

@@ -2,7 +2,7 @@
 #include "LitTorrent/BEncoding.h"
 #include "LitTorrent/Torrent.h"
 #include "LitTorrent/Tracker.h"
-#include "../Utils/HTTPUtils.cpp"
+#include "../Utils/HTTPUtils.h"
 #include "Logger.h"
 #include <algorithm>
 #include <cstddef>
@@ -73,7 +73,24 @@ bool Tracker::handleResponse(const struct HTTPResponse& response){
     BEncodedDict resDict= res->GetDictionary();
 
     peerRequestInterval_ = resDict["interval"]->GetNumber();
-    BEncodedList peerList = resDict["peers"]->GetList();
+    ByteArray peerInfo = resDict["peers"]->GetByteArray();
+
+    std::vector<IPEndPoint> endpoints;
+    // Update peer list 
+    for(int i = 0; i < peerInfo.size(); i++){
+      int offset = i * 6;
+      std::string addr = std::to_string(peerInfo[offset]) + "." +
+                         std::to_string(peerInfo[offset + 1]) + "." +
+                         std::to_string(peerInfo[offset + 2]) + "." +
+                         std::to_string(peerInfo[offset + 3]);
+      // Read the port (big-endian) at offset + 4
+      uint16_t port = (static_cast<uint16_t>(peerInfo[offset + 4]) << 8) |
+                      static_cast<uint16_t>(peerInfo[offset + 5]);
+      endpoints.push_back(IPEndPoint(addr, port));
+    }
+    //
+
+    peerListUpdated_.notify(endpoints);
 
     return true;
 }

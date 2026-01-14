@@ -302,6 +302,13 @@ void Torrent::closeFiles() {
   }
 }
 
+void Torrent::updateTracker(TrackerEvent ev, const std::string &id,
+                            const int &port) {
+  for (const auto &tracker : trackers_) {
+    tracker->update(shared_from_this(), ev, id, port);
+  }
+}
+
 double Torrent::getProgress() const {
   if (getPieceCount() == 0) {
     return 0.0;
