@@ -79,9 +79,9 @@ private:
 
   // Tiny RAII helper to keep code clean when optional locking is enabled
   struct guard {
-    std::optional<std::unique_lock<std::mutex>> &lk;
-    guard(std::optional<std::unique_lock<std::mutex>> &&lock) : lk(lock) {}
-    ~guard() = default;
+    std::optional<std::unique_lock<std::mutex>> lk;
+    explicit guard(std::optional<std::unique_lock<std::mutex>> lock)
+        : lk(std::move(lock)) {}
   };
 
   mutable std::mutex mtx_;

@@ -41,3 +41,5 @@ add_littorrent_test(HTTPUtils_test
 
 add_littorrent_test(SHA1_test)
 
+add_littorrent_test(Observable_test)
+
